@@ -1,0 +1,57 @@
+<?php
+
+
+function h5p_math_form_alter(&$form, &$form_state, $form_id) {
+  if ($form_id == 'h5p_content_node_form') {
+    $form['#after_build'][] = 'h5p_math_node_form_process';
+  }
+}
+
+// Add mathjax support
+function h5p_math_node_form_process($form, &$form_state) {
+  $module_path = drupal_get_path('module', 'h5p_math');
+  drupal_add_js(array(
+    'h5peditor' => array(
+      'ckeditorPluginPath' => base_path() . $module_path . '/ckeditor',
+      'assets' => array(
+        'js' => array(
+          base_path() . $module_path . '/js/h5p-math.js',
+          base_path() . $module_path . '/js/h5peditor-html-addon.js',
+        )
+      )
+    )
+  ), 'setting');
+
+  return $form;
+}
+
+function h5p_math_h5p_scripts_alter(&$scripts, $libraries, $mode) {
+  if ($mode == 'div' || $mode == 'iframe') {
+    $scripts[] = (object) array(
+      'path' => 'http://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML'
+    );
+  }
+}
+
+function h5p_math_h5p_semantics_alter(&$semantics) {
+  foreach ($semantics as $field) {
+    // Lists specify the field inside the list.
+    while ($field->type == 'list') {
+      $field = $field->field;
+    }
+
+    if ($field->type == 'group') {
+      // Recurse for group.
+      h5p_math_h5p_semantics_alter($field->fields);
+    }
+    else if ($field->type == 'text' && isset($field->widget) && $field->widget == 'html') {
+      // Add MathML tags
+      if (!isset($field->tags)) {
+        $field->tags = array();
+      }
+      $field->tags = array_merge($field->tags, array(
+        'math'
+      ));
+    }
+  }
+}
